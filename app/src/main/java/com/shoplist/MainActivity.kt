@@ -30,15 +30,15 @@ fun AppNavigation() {
     ) {
 
         composable("login") {
-            LoginScreen(navController)
+            LoginPage(navController)
         }
 
         composable("register") {
-            RegisterScreen(navController)
+            RegisterPage(navController)
         }
 
         composable("home") {
-            HomeScreen()
+            HomePage()
         }
     }
 }

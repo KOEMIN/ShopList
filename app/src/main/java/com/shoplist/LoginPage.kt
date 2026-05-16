@@ -25,7 +25,7 @@ import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun LoginScreen(navController: NavHostController) {
+fun LoginPage(navController: NavHostController) {
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

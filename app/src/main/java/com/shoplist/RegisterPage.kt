@@ -27,7 +27,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
-fun RegisterScreen(navController: NavHostController) {
+fun RegisterPage(navController: NavHostController) {
 
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
