@@ -23,15 +23,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
-fun LoginScreen(navController: NavHostController) {
+fun RegisterScreen(navController: NavHostController) {
 
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
     val auth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
 
     Box(
         modifier = Modifier
@@ -51,6 +55,17 @@ fun LoginScreen(navController: NavHostController) {
                 textAlign = TextAlign.Center,
                 text = "ShopList",
                 style = MaterialTheme.typography.headlineMedium
+            )
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                },
+                label = {
+                    Text("Name")
+                },
+                modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
@@ -77,38 +92,60 @@ fun LoginScreen(navController: NavHostController) {
             )
 
             Text(
-                text = "Belum punya akun? Register",
+                text = "Sudah punya akun? Login",
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable {
-                    navController.navigate("register")
+                    navController.navigate("login")
                 }
             )
 
             Button(
                 onClick = {
 
-                    auth.signInWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
+                    auth.createUserWithEmailAndPassword(
+                        email,
+                        password
+                    ).addOnCompleteListener { task ->
 
-                            if (task.isSuccessful) {
+                        if (task.isSuccessful) {
 
-                                navController.navigate("home")
+                            val uid = auth.currentUser?.uid ?: ""
 
-                            } else {
+                            val userData = hashMapOf(
+                                "name" to name,
+                                "email" to email,
+                                "createdAt" to FieldValue.serverTimestamp()
+                            )
 
-                                errorMessage =
-                                    task.exception?.message
-                                        ?: "Login gagal"
+                            db.collection("users")
+                                .document(uid)
+                                .set(userData)
+                                .addOnSuccessListener {
 
-                            }
+                                    navController.navigate("login")
+
+                                }
+                                .addOnFailureListener {
+
+                                    errorMessage =
+                                        it.message ?: "Firestore gagal"
+
+                                }
+
+                        } else {
+
+                            errorMessage =
+                                task.exception?.message
+                                    ?: "Register gagal"
 
                         }
 
-                },
+                    }
 
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Login")
+                Text("Register")
             }
 
             if (errorMessage.isNotEmpty()) {
