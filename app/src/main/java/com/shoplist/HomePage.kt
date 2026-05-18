@@ -2,6 +2,7 @@ package com.shoplist
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // <-- 1. IMPORT BARU YANG HARUS DITAMBAH
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,15 +68,14 @@ data class ShoppingGroup(
 @Preview
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage() {
-    // 1. State kosong untuk menampung data dari Firestore
+fun HomePage(
+    // 2. TAMBAHKAN PARAMETER LAMBDA DI SINI (Diberi default kosong agar @Preview tetap bekerja)
+    onGroupClick: (String, String) -> Unit = { _, _ -> }
+) {
     val groupList = remember { mutableStateListOf<ShoppingGroup>() }
-
-    // 2. State untuk mengontrol kemunculan dialog dan input teks
     var showDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
 
-    // 3. Membaca data dari Firestore secara Real-Time saat halaman dibuka
     LaunchedEffect(Unit) {
         val db = FirebaseFirestore.getInstance()
 
@@ -87,12 +87,10 @@ fun HomePage() {
                 }
 
                 if (snapshot != null) {
-                    groupList.clear() // Bersihkan list lama
-
+                    groupList.clear()
                     for (document in snapshot.documents) {
                         val name = document.getString("name") ?: ""
                         val code = document.getString("code") ?: ""
-                        // Sementara pending count diset 0
                         val pendingCount = 0
 
                         groupList.add(
@@ -186,11 +184,11 @@ fun HomePage() {
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(groupList) { group ->
-                GroupCardItem(group = group)
+                // 3. OPER PARAMETER ONGROUPCLICK KE COMPONENT CARD
+                GroupCardItem(group = group, onGroupClick = onGroupClick)
             }
         }
 
-        // 4. Komponen AlertDialog untuk menginput nama grup
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = {
@@ -219,7 +217,6 @@ fun HomePage() {
 
                                 val groupData = hashMapOf(
                                     "name" to newGroupName.trim(),
-                                    // Untuk random code room
                                     "code" to List(4) {(('A'..'Z') + ('0'..'9')).random()}.joinToString(""),
                                     "createdBy" to currentUserId,
                                     "createdAt" to FieldValue.serverTimestamp()
@@ -257,11 +254,16 @@ fun HomePage() {
 }
 
 @Composable
-fun GroupCardItem(group: ShoppingGroup) {
+fun GroupCardItem(
+    group: ShoppingGroup,
+    onGroupClick: (String, String) -> Unit // <-- 4. TAMBAHKAN PARAMETER DI SINI JUGA
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            // 5. TAMBAHKAN CLICKABLE AGAR KARTU BISA DIKLIK DAN MENGIRIM ID & NAMA
+            .clickable { onGroupClick(group.id, group.name) },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFE0E0E0))

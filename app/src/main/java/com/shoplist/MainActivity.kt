@@ -5,9 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavType // <-- IMPORT BARU UNTUK TIPE DATA ARGUMEN
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument // <-- IMPORT BARU UNTUK MENANGKAP ARGUMEN
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,8 +39,42 @@ fun AppNavigation() {
             RegisterPage(navController)
         }
 
+        // =======================================================================
+        // PERUBAHAN 1: Sesuaikan rute "home" agar menerima aksi klik item grup
+        // =======================================================================
         composable("home") {
-            HomePage()
+            // Asumsi: HomePage Anda memiliki fungsi lambda (callback) saat sebuah grup diklik
+            HomePage(
+                onGroupClick = { id, name ->
+                    // Berpindah halaman ke shopping_list sambil menyelipkan id dan nama grup
+                    navController.navigate("shopping_list/$id/$name")
+                }
+            )
+        }
+
+        // =======================================================================
+        // PERUBAHAN 2: Tambahkan rute baru untuk memanggil BelanjaBarengScreen
+        // =======================================================================
+        composable(
+            route = "shopping_list/{groupId}/{groupName}",
+            arguments = listOf(
+                navArgument("groupId") { type = NavType.StringType },
+                navArgument("groupName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            // Mengambil ekstensi data argumen string yang dikirim oleh HomePage
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            val groupName = backStackEntry.arguments?.getString("groupName") ?: "Belanja Bareng"
+
+            // Memanggil screen baru yang Anda buat
+            BelanjaBarengScreen(
+                groupId = groupId,
+                groupName = groupName,
+                onBackClick = {
+                    // Logika ketika tombol ArrowBack diklik (kembali ke halaman sebelumnya)
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
