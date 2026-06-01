@@ -70,7 +70,7 @@ data class ShoppingGroup(
 @Composable
 fun HomePage(
     // 2. TAMBAHKAN PARAMETER LAMBDA DI SINI (Diberi default kosong agar @Preview tetap bekerja)
-    onGroupClick: (String, String) -> Unit = { _, _ -> }
+    onGroupClick: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
     val groupList = remember { mutableStateListOf<ShoppingGroup>() }
     var showDialog by remember { mutableStateOf(false) }
@@ -78,30 +78,43 @@ fun HomePage(
 
     LaunchedEffect(Unit) {
         val db = FirebaseFirestore.getInstance()
+        val auth = FirebaseAuth.getInstance()
+        val currentUid = auth.currentUser?.uid ?: return@LaunchedEffect
 
         db.collection("groups")
             .addSnapshotListener { snapshot, error ->
+
                 if (error != null) {
                     android.util.Log.e("Firestore", "Gagal mengambil data", error)
                     return@addSnapshotListener
                 }
 
-                if (snapshot != null) {
-                    groupList.clear()
-                    for (document in snapshot.documents) {
-                        val name = document.getString("name") ?: ""
-                        val code = document.getString("code") ?: ""
-                        val pendingCount = 0
+                groupList.clear()
 
-                        groupList.add(
-                            ShoppingGroup(
-                                id = document.id,
-                                name = name,
-                                code = code,
-                                pendingItemsCount = pendingCount
-                            )
-                        )
-                    }
+                snapshot?.documents?.forEach { document ->
+
+                    db.collection("groups")
+                        .document(document.id)
+                        .collection("users")
+                        .document(currentUid)
+                        .get()
+                        .addOnSuccessListener { userDoc ->
+
+                            if (userDoc.exists()) {
+
+                                val name = document.getString("name") ?: ""
+                                val code = document.getString("code") ?: ""
+
+                                groupList.add(
+                                    ShoppingGroup(
+                                        id = document.id,
+                                        name = name,
+                                        code = code,
+                                        pendingItemsCount = 0
+                                    )
+                                )
+                            }
+                        }
                 }
             }
     }
@@ -224,9 +237,23 @@ fun HomePage(
 
                                 db.collection("groups")
                                     .add(groupData)
-                                    .addOnSuccessListener {
-                                        showDialog = false
-                                        newGroupName = ""
+                                    .addOnSuccessListener { groupRef ->
+
+                                        val userData = hashMapOf(
+                                            "uid" to currentUserId,
+                                            "joinedAt" to FieldValue.serverTimestamp()
+                                        )
+
+                                        groupRef.collection("users")
+                                            .document(currentUserId)
+                                            .set(userData)
+                                            .addOnSuccessListener {
+                                                showDialog = false
+                                                newGroupName = ""
+                                            }
+                                            .addOnFailureListener { e ->
+                                                android.util.Log.e("Firestore", "Gagal menambah user", e)
+                                            }
                                     }
                                     .addOnFailureListener { e ->
                                         android.util.Log.e("Firestore", "Gagal membuat grup", e)
@@ -256,14 +283,14 @@ fun HomePage(
 @Composable
 fun GroupCardItem(
     group: ShoppingGroup,
-    onGroupClick: (String, String) -> Unit // <-- 4. TAMBAHKAN PARAMETER DI SINI JUGA
+    onGroupClick: (String, String, String) -> Unit // <-- 4. TAMBAHKAN PARAMETER DI SINI JUGA
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             // 5. TAMBAHKAN CLICKABLE AGAR KARTU BISA DIKLIK DAN MENGIRIM ID & NAMA
-            .clickable { onGroupClick(group.id, group.name) },
+            .clickable { onGroupClick(group.id, group.code, group.name) },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFE0E0E0))

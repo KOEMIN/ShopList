@@ -45,9 +45,9 @@ fun AppNavigation() {
         composable("home") {
             // Asumsi: HomePage Anda memiliki fungsi lambda (callback) saat sebuah grup diklik
             HomePage(
-                onGroupClick = { id, name ->
+                onGroupClick = { id, code, name ->
                     // Berpindah halaman ke shopping_list sambil menyelipkan id dan nama grup
-                    navController.navigate("shopping_list/$id/$name")
+                    navController.navigate("shopping_list/$id/$code/$name")
                 }
             )
         }
@@ -56,20 +56,23 @@ fun AppNavigation() {
         // PERUBAHAN 2: Tambahkan rute baru untuk memanggil BelanjaBarengScreen
         // =======================================================================
         composable(
-            route = "shopping_list/{groupId}/{groupName}",
+            route = "shopping_list/{groupId}/{groupCode}/{groupName}",
             arguments = listOf(
                 navArgument("groupId") { type = NavType.StringType },
+                navArgument("groupCode") { type = NavType.StringType },
                 navArgument("groupName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             // Mengambil ekstensi data argumen string yang dikirim oleh HomePage
             val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            val groupCode = backStackEntry.arguments?.getString("groupCode") ?: ""
             val groupName = backStackEntry.arguments?.getString("groupName") ?: "Belanja Bareng"
 
             // Memanggil screen baru yang Anda buat
             BelanjaBarengScreen(
                 groupId = groupId,
                 groupName = groupName,
+                groupCode = groupCode,
                 onBackClick = {
                     // Logika ketika tombol ArrowBack diklik (kembali ke halaman sebelumnya)
                     navController.popBackStack()

@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -23,6 +24,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 fun BelanjaBarengScreen(
     groupId: String,
     groupName: String,
+    groupCode: String,
     onBackClick: () -> Unit
 ) {
     val db = FirebaseFirestore.getInstance()
@@ -63,7 +65,7 @@ fun BelanjaBarengScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text = groupName, fontSize = 20.sp, color = Color(0xFF1C1B1F))
+                    Text(text = "$groupName - $groupCode", fontSize = 20.sp, color = Color(0xFF1C1B1F))
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
