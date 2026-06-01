@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -111,24 +112,37 @@ fun RegisterPage(navController: NavHostController) {
 
                             val uid = auth.currentUser?.uid ?: ""
 
-                            val userData = hashMapOf(
-                                "name" to name,
-                                "email" to email,
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
+                            val profileUpdates = userProfileChangeRequest {
+                                displayName = name
+                            }
 
-                            db.collection("users")
-                                .document(uid)
-                                .set(userData)
-                                .addOnSuccessListener {
+                            auth.currentUser?.updateProfile(profileUpdates)
+                                ?.addOnSuccessListener {
 
-                                    navController.navigate("login")
+                                    val userData = hashMapOf(
+                                        "name" to name,
+                                        "email" to email,
+                                        "createdAt" to FieldValue.serverTimestamp()
+                                    )
 
-                                }
-                                .addOnFailureListener {
+                                    db.collection("users")
+                                        .document(uid)
+                                        .set(userData)
+                                        .addOnSuccessListener {
 
-                                    errorMessage =
-                                        it.message ?: "Firestore gagal"
+                                            FirebaseAuth.getInstance().signOut()
+
+                                            navController.navigate("login") {
+                                                popUpTo("register") {
+                                                    inclusive = true
+                                                }
+                                            }
+
+                                        }
+                                        .addOnFailureListener {
+                                            errorMessage =
+                                                it.message ?: "Firestore gagal"
+                                        }
 
                                 }
 
@@ -139,7 +153,6 @@ fun RegisterPage(navController: NavHostController) {
                                     ?: "Register gagal"
 
                         }
-
                     }
 
                 },

@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +27,8 @@ fun BelanjaBarengScreen(
     groupId: String,
     groupName: String,
     groupCode: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onChatClick: (String, String, String) -> Unit
 ) {
     val db = FirebaseFirestore.getInstance()
     val shoppingList = remember { mutableStateListOf<ShoppingItem>() }
@@ -72,6 +75,22 @@ fun BelanjaBarengScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali",
                             tint = Color(0xFF1C1B1F))
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            onChatClick(
+                                groupId,
+                                groupName,
+                                groupCode
+                            )
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Chat,
+                            contentDescription = "Chat"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = lavenderBg)

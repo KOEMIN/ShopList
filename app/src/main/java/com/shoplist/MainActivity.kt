@@ -21,7 +21,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Preview
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -75,6 +74,25 @@ fun AppNavigation() {
                 groupCode = groupCode,
                 onBackClick = {
                     // Logika ketika tombol ArrowBack diklik (kembali ke halaman sebelumnya)
+                    navController.popBackStack()
+                },
+                onChatClick = { id, name, code ->
+                    navController.navigate(
+                        "chat/$id/$name/$code"
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = "chat/{groupId}/{groupName}/{groupCode}"
+        ) { backStackEntry ->
+
+            ChatScreen(
+                groupId = backStackEntry.arguments?.getString("groupId") ?: "",
+                groupName = backStackEntry.arguments?.getString("groupName") ?: "",
+                groupCode = backStackEntry.arguments?.getString("groupCode") ?: "",
+                onBackClick = {
                     navController.popBackStack()
                 }
             )

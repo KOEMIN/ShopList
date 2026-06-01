@@ -307,12 +307,6 @@ fun GroupCardItem(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1C1B1F)
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (group.pendingItemsCount > 0) "${group.pendingItemsCount} barang belum dibeli" else "Semua belanjaan beres!",
-                fontSize = 14.sp,
-                color = if (group.pendingItemsCount > 0) Color(0xFF49454F) else Color(0xFF008069)
-            )
         }
     }
 }
