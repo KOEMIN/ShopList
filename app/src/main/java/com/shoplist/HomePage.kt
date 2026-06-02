@@ -1,19 +1,10 @@
 package com.shoplist
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable // <-- 1. IMPORT BARU YANG HARUS DITAMBAH
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -22,101 +13,79 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import java.util.UUID
 
-// Model data
+// Tambahkan joinCode di Model Data agar bisa ditampilkan di UI
 data class ShoppingGroup(
     val id: String,
     val name: String,
-    val code: String,
-    val pendingItemsCount: Int
+    val pendingItemsCount: Int,
+    val joinCode: String
 )
 
-@Preview
+// Enum untuk mengatur jenis Dialog yang muncul
+enum class GroupDialogState {
+    NONE, CHOOSE_ACTION, CREATE_GROUP, JOIN_GROUP
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(
-    // 2. TAMBAHKAN PARAMETER LAMBDA DI SINI (Diberi default kosong agar @Preview tetap bekerja)
-    onGroupClick: (String, String, String) -> Unit = { _, _, _ -> }
-) {
+fun HomePage(onGroupClick: (String, String, String) -> Unit = { _, _, _ -> }) {
+    val context = LocalContext.current
     val groupList = remember { mutableStateListOf<ShoppingGroup>() }
-    var showDialog by remember { mutableStateOf(false) }
-    var newGroupName by remember { mutableStateOf("") }
 
+    // State untuk Dialog
+    var dialogState by remember { mutableStateOf(GroupDialogState.NONE) }
+    var groupNameInput by remember { mutableStateOf("") }
+    var joinCodeInput by remember { mutableStateOf("") }
+
+    // Membaca data dari Firestore secara Real-Time (Difilter berdasarkan members)
     LaunchedEffect(Unit) {
         val db = FirebaseFirestore.getInstance()
         val auth = FirebaseAuth.getInstance()
-        val currentUid = auth.currentUser?.uid ?: return@LaunchedEffect
+        val currentUserId = auth.currentUser?.uid
 
-        db.collection("groups")
-            .addSnapshotListener { snapshot, error ->
+        if (currentUserId != null) {
+            // HANYA ambil grup di mana user ini menjadi anggotanya
+            db.collection("groups")
+                .whereArrayContains("members", currentUserId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        android.util.Log.e("Firestore", "Gagal mengambil data", error)
+                        return@addSnapshotListener
+                    }
 
-                if (error != null) {
-                    android.util.Log.e("Firestore", "Gagal mengambil data", error)
-                    return@addSnapshotListener
-                }
+                    if (snapshot != null) {
+                        groupList.clear()
+                        for (document in snapshot.documents) {
+                            val name = document.getString("name") ?: ""
+                            val code = document.getString("joinCode") ?: "-"
+                            val pendingCount = 0
 
-                groupList.clear()
-
-                snapshot?.documents?.forEach { document ->
-
-                    db.collection("groups")
-                        .document(document.id)
-                        .collection("users")
-                        .document(currentUid)
-                        .get()
-                        .addOnSuccessListener { userDoc ->
-
-                            if (userDoc.exists()) {
-
-                                val name = document.getString("name") ?: ""
-                                val code = document.getString("code") ?: ""
-
-                                groupList.add(
-                                    ShoppingGroup(
-                                        id = document.id,
-                                        name = name,
-                                        code = code,
-                                        pendingItemsCount = 0
-                                    )
+                            groupList.add(
+                                ShoppingGroup(
+                                    id = document.id,
+                                    name = name,
+                                    pendingItemsCount = pendingCount,
+                                    joinCode = code
                                 )
-                            }
+                            )
                         }
+                    }
                 }
-            }
+        }
     }
 
     Scaffold(
@@ -124,16 +93,9 @@ fun HomePage(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "Kita Belanja",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Text("Kita Belanja", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium)
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF6750A4)
-                ),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF6750A4)),
                 actions = {
                     Box(
                         modifier = Modifier
@@ -145,167 +107,235 @@ fun HomePage(
             )
         },
         bottomBar = {
-            BottomAppBar(
-                containerColor = Color.White,
-                tonalElevation = 8.dp
-            ) {
+            BottomAppBar(containerColor = Color.White, tonalElevation = 8.dp) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { /* Navigasi ke History */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "History",
-                            tint = Color(0xFF381E72)
-                        )
+                        Icon(Icons.Default.Refresh, "History", tint = Color(0xFF381E72))
                     }
-
                     IconButton(onClick = { /* Navigasi ke Home */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Home,
-                            contentDescription = "Home",
-                            tint = Color(0xFF381E72)
-                        )
+                        Icon(Icons.Default.Home, "Home", tint = Color(0xFF381E72))
                     }
-
                     FloatingActionButton(
-                        onClick = { showDialog = true },
+                        onClick = { dialogState = GroupDialogState.CHOOSE_ACTION }, // Munculkan pilihan
                         containerColor = Color(0xFFD0BCFF),
                         contentColor = Color(0xFF381E72),
                         shape = CircleShape,
-                        modifier = Modifier.size(40.dp),
-                        elevation = FloatingActionButtonDefaults.elevation(0.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Tambah Grup"
-                        )
+                        Icon(Icons.Default.Add, "Tambah/Gabung Grup")
                     }
                 }
             }
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(top = 8.dp),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(top = 8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(groupList) { group ->
-                // 3. OPER PARAMETER ONGROUPCLICK KE COMPONENT CARD
-                GroupCardItem(group = group, onGroupClick = onGroupClick)
+                GroupCardItem(
+                    group = group,
+                    onClick = {
+                        // Saat kartu diklik, kirim ID, Kode, dan Nama ke MainActivity
+                        onGroupClick(group.id, group.joinCode, group.name)
+                    }
+                )
             }
         }
 
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showDialog = false
-                    newGroupName = ""
-                },
-                title = {
-                    Text(text = "Buat Grup Baru", fontWeight = FontWeight.Bold)
-                },
-                text = {
-                    OutlinedTextField(
-                        value = newGroupName,
-                        onValueChange = { newGroupName = it },
-                        label = { Text("Nama Grup") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newGroupName.isNotBlank()) {
-                                val db = FirebaseFirestore.getInstance()
-                                val auth = FirebaseAuth.getInstance()
-                                val currentUserId = auth.currentUser?.uid ?: ""
+        // ==========================================
+        // KUMPULAN DIALOG (CHOOSE, CREATE, JOIN)
+        // ==========================================
+        when (dialogState) {
+            GroupDialogState.NONE -> {} // Tidak menampilkan apa-apa
 
-                                val groupData = hashMapOf(
-                                    "name" to newGroupName.trim(),
-                                    "code" to List(4) {(('A'..'Z') + ('0'..'9')).random()}.joinToString(""),
-                                    "createdBy" to currentUserId,
-                                    "createdAt" to FieldValue.serverTimestamp()
-                                )
-
-                                db.collection("groups")
-                                    .add(groupData)
-                                    .addOnSuccessListener { groupRef ->
-
-                                        val userData = hashMapOf(
-                                            "uid" to currentUserId,
-                                            "joinedAt" to FieldValue.serverTimestamp()
-                                        )
-
-                                        groupRef.collection("users")
-                                            .document(currentUserId)
-                                            .set(userData)
-                                            .addOnSuccessListener {
-                                                showDialog = false
-                                                newGroupName = ""
-                                            }
-                                            .addOnFailureListener { e ->
-                                                android.util.Log.e("Firestore", "Gagal menambah user", e)
-                                            }
-                                    }
-                                    .addOnFailureListener { e ->
-                                        android.util.Log.e("Firestore", "Gagal membuat grup", e)
-                                    }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
-                    ) {
-                        Text("Buat")
+            // 1. Dialog Pilihan Awal
+            GroupDialogState.CHOOSE_ACTION -> {
+                AlertDialog(
+                    onDismissRequest = { dialogState = GroupDialogState.NONE },
+                    title = { Text("Pilih Aksi", fontWeight = FontWeight.Bold) },
+                    text = { Text("Apa yang ingin kamu lakukan?") },
+                    confirmButton = {
+                        Button(
+                            onClick = { dialogState = GroupDialogState.CREATE_GROUP },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                        ) { Text("Buat Grup Baru") }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = { dialogState = GroupDialogState.JOIN_GROUP }
+                        ) { Text("Gabung Grup", color = Color(0xFF6750A4)) }
                     }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showDialog = false
-                            newGroupName = ""
+                )
+            }
+
+            // 2. Dialog Membuat Grup Baru
+            GroupDialogState.CREATE_GROUP -> {
+                AlertDialog(
+                    onDismissRequest = {
+                        dialogState = GroupDialogState.NONE
+                        groupNameInput = ""
+                    },
+                    title = { Text("Buat Grup Baru", fontWeight = FontWeight.Bold) },
+                    text = {
+                        OutlinedTextField(
+                            value = groupNameInput,
+                            onValueChange = { groupNameInput = it },
+                            label = { Text("Nama Grup") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (groupNameInput.isNotBlank()) {
+                                    val db = FirebaseFirestore.getInstance()
+                                    val auth = FirebaseAuth.getInstance()
+                                    val currentUserId = auth.currentUser?.uid ?: return@Button
+
+                                    // Generate 6 karakter kode acak
+                                    val generatedCode = UUID.randomUUID().toString().substring(0, 6).uppercase()
+
+                                    val groupData = hashMapOf(
+                                        "name" to groupNameInput.trim(),
+                                        "createdBy" to currentUserId,
+                                        "createdAt" to FieldValue.serverTimestamp(),
+                                        "joinCode" to generatedCode,
+                                        "members" to listOf(currentUserId) // Array anggota
+                                    )
+
+                                    db.collection("groups").add(groupData)
+                                        .addOnSuccessListener {
+                                            dialogState = GroupDialogState.NONE
+                                            groupNameInput = ""
+                                            Toast.makeText(context, "Grup berhasil dibuat!", Toast.LENGTH_SHORT).show()
+                                        }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                        ) { Text("Buat") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { dialogState = GroupDialogState.NONE }) {
+                            Text("Batal", color = Color(0xFF6750A4))
                         }
-                    ) {
-                        Text("Batal", color = Color(0xFF6750A4))
                     }
-                }
-            )
+                )
+            }
+
+            // 3. Dialog Bergabung dengan Grup
+            GroupDialogState.JOIN_GROUP -> {
+                AlertDialog(
+                    onDismissRequest = {
+                        dialogState = GroupDialogState.NONE
+                        joinCodeInput = ""
+                    },
+                    title = { Text("Gabung Grup", fontWeight = FontWeight.Bold) },
+                    text = {
+                        Column {
+                            Text("Masukkan 6 digit kode dari temanmu.", fontSize = 14.sp, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = joinCodeInput,
+                                onValueChange = { joinCodeInput = it.uppercase() }, // Paksa huruf besar
+                                label = { Text("Kode Grup") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (joinCodeInput.isNotBlank()) {
+                                    val db = FirebaseFirestore.getInstance()
+                                    val auth = FirebaseAuth.getInstance()
+                                    val currentUserId = auth.currentUser?.uid ?: return@Button
+
+                                    // Cari grup berdasarkan kode yang diinput
+                                    db.collection("groups")
+                                        .whereEqualTo("joinCode", joinCodeInput.trim())
+                                        .get()
+                                        .addOnSuccessListener { querySnapshot ->
+                                            if (!querySnapshot.isEmpty) {
+                                                // Jika kode ditemukan, ambil ID dokumennya
+                                                val docId = querySnapshot.documents[0].id
+
+                                                // Tambahkan UID user ke dalam array 'members'
+                                                db.collection("groups").document(docId)
+                                                    .update("members", FieldValue.arrayUnion(currentUserId))
+                                                    .addOnSuccessListener {
+                                                        dialogState = GroupDialogState.NONE
+                                                        joinCodeInput = ""
+                                                        Toast.makeText(context, "Berhasil gabung ke grup!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                            } else {
+                                                // Jika kode tidak ada di database
+                                                Toast.makeText(context, "Kode grup tidak ditemukan!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                        ) { Text("Gabung") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { dialogState = GroupDialogState.NONE }) {
+                            Text("Batal", color = Color(0xFF6750A4))
+                        }
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun GroupCardItem(
-    group: ShoppingGroup,
-    onGroupClick: (String, String, String) -> Unit // <-- 4. TAMBAHKAN PARAMETER DI SINI JUGA
-) {
+fun GroupCardItem(group: ShoppingGroup, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            // 5. TAMBAHKAN CLICKABLE AGAR KARTU BISA DIKLIK DAN MENGIRIM ID & NAMA
-            .clickable { onGroupClick(group.id, group.code, group.name) },
+            .clickable { onClick() }, // Ini bagian yang membuat kartu bisa merespons klik
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFE0E0E0))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.Center
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = group.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
+
+                // Menampilkan Kode Grup agar bisa di-share ke teman
+                Surface(
+                    color = Color(0xFFF3EDF7),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "Kode: ${group.joinCode}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF6750A4),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = group.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1C1B1F)
+                text = if (group.pendingItemsCount > 0) "${group.pendingItemsCount} barang belum dibeli" else "Semua belanjaan beres!",
+                fontSize = 14.sp,
+                color = if (group.pendingItemsCount > 0) Color(0xFF49454F) else Color(0xFF008069)
             )
         }
     }
