@@ -95,31 +95,16 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = groupName,
-                            fontSize = 18.sp
-                        )
-
-                        Text(
-                            text = "Kode: $groupCode",
-                            fontSize = 12.sp
-                        )
-                    }
+                    Text(text = "$groupName - $groupCode", fontSize = 20.sp, color = Color(0xFF1C1B1F))
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onBackClick
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali"
-                        )
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali",
+                            tint = Color(0xFF1C1B1F))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = lavenderBg
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = lavenderBg)
             )
         },
 
@@ -136,7 +121,6 @@ fun ChatScreen(
                         .imePadding(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     TextField(
                         value = messageText,
                         onValueChange = {
