@@ -123,17 +123,16 @@ fun ChatScreen(
                 ) {
                     TextField(
                         value = messageText,
-                        onValueChange = {
-                            messageText = it
-                        },
+                        onValueChange = { messageText = it },
+                        placeholder = { Text("Ketik Pesan...", color = Color.Gray) },
                         modifier = Modifier.weight(1f),
-                        placeholder = {
-                            Text("Ketik pesan...")
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Send
+                        shape = RoundedCornerShape(24.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
                         ),
-                        shape = RoundedCornerShape(24.dp)
                     )
 
                     Spacer(
