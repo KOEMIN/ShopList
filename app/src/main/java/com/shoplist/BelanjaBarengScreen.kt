@@ -96,11 +96,16 @@ fun BelanjaBarengScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = lavenderBg)
             )
         },
+
         bottomBar = {
-            Surface(color = lavenderBg, modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                color = lavenderBg,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Row(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .fillMaxWidth()
+                        .padding(12.dp)
                         .navigationBarsPadding()
                         .imePadding(),
                     verticalAlignment = Alignment.CenterVertically
@@ -109,8 +114,8 @@ fun BelanjaBarengScreen(
                         value = newItemText,
                         onValueChange = { newItemText = it },
                         placeholder = { Text("Tambah barang...", color = Color.Gray) },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(25.dp),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(24.dp),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White,
@@ -120,7 +125,7 @@ fun BelanjaBarengScreen(
                         singleLine = true
                     )
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Tombol Tambah Barang Polos Bulat
                     Box(
@@ -156,8 +161,8 @@ fun BelanjaBarengScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // PERBAIKAN: Menggunakan objek data list yang benar (shoppingList)
             items(items = shoppingList, key = { it.id }) { item ->
-                // Memanggil Komponen Baris Item dari file terpisah yang telah dibuat
                 ShoppingItemRow(
                     item = item,
                     primaryColor = primaryPurple,
@@ -167,6 +172,14 @@ fun BelanjaBarengScreen(
                             .collection("items")
                             .document(item.id)
                             .update("isChecked", isChecked)
+                    },
+                    onDeleteClick = {
+                        // Logika menghapus dokumen barang spesifik dari Firestore
+                        db.collection("groups")
+                            .document(groupId)
+                            .collection("items")
+                            .document(item.id)
+                            .delete()
                     }
                 )
             }

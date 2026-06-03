@@ -95,31 +95,16 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = groupName,
-                            fontSize = 18.sp
-                        )
-
-                        Text(
-                            text = "Kode: $groupCode",
-                            fontSize = 12.sp
-                        )
-                    }
+                    Text(text = "$groupName - $groupCode", fontSize = 20.sp, color = Color(0xFF1C1B1F))
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onBackClick
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali"
-                        )
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali",
+                            tint = Color(0xFF1C1B1F))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = lavenderBg
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = lavenderBg)
             )
         },
 
@@ -136,20 +121,18 @@ fun ChatScreen(
                         .imePadding(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     TextField(
                         value = messageText,
-                        onValueChange = {
-                            messageText = it
-                        },
+                        onValueChange = { messageText = it },
+                        placeholder = { Text("Ketik Pesan...", color = Color.Gray) },
                         modifier = Modifier.weight(1f),
-                        placeholder = {
-                            Text("Ketik pesan...")
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Send
+                        shape = RoundedCornerShape(24.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
                         ),
-                        shape = RoundedCornerShape(24.dp)
                     )
 
                     Spacer(
