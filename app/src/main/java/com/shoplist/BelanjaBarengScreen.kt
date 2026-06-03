@@ -161,8 +161,8 @@ fun BelanjaBarengScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // PERBAIKAN: Menggunakan objek data list yang benar (shoppingList)
             items(items = shoppingList, key = { it.id }) { item ->
-                // Memanggil Komponen Baris Item dari file terpisah yang telah dibuat
                 ShoppingItemRow(
                     item = item,
                     primaryColor = primaryPurple,
@@ -172,6 +172,14 @@ fun BelanjaBarengScreen(
                             .collection("items")
                             .document(item.id)
                             .update("isChecked", isChecked)
+                    },
+                    onDeleteClick = {
+                        // Logika menghapus dokumen barang spesifik dari Firestore
+                        db.collection("groups")
+                            .document(groupId)
+                            .collection("items")
+                            .document(item.id)
+                            .delete()
                     }
                 )
             }
