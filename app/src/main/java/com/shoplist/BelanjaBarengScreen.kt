@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.material.icons.filled.History
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -33,7 +34,7 @@ fun BelanjaBarengScreen(
     val db = FirebaseFirestore.getInstance()
     val shoppingList = remember { mutableStateListOf<ShoppingItem>() }
     var newItemText by remember { mutableStateOf("") }
-
+    var showHistoryDialog by remember { mutableStateOf(false) }
     val lavenderBg = Color(0xFFF3EDF7)
     val primaryPurple = Color(0xFF6750A4)
 
@@ -64,6 +65,14 @@ fun BelanjaBarengScreen(
         }
     }
 
+    if (showHistoryDialog) {
+        HistoryDialog(
+            groupId = groupId,
+            db = db,
+            onDismiss = { showHistoryDialog = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,6 +87,12 @@ fun BelanjaBarengScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showHistoryDialog = true }) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = "History Hapus"
+                        )
+                    }
                     IconButton(
                         onClick = {
                             onChatClick(
@@ -174,15 +189,73 @@ fun BelanjaBarengScreen(
                             .update("isChecked", isChecked)
                     },
                     onDeleteClick = {
-                        // Logika menghapus dokumen barang spesifik dari Firestore
-                        db.collection("groups")
-                            .document(groupId)
-                            .collection("items")
-                            .document(item.id)
-                            .delete()
+                        // PERBAIKAN: Gunakan Batch untuk memindahkan item ke history, lalu hapus dari daftar utama
+                        val itemRef = db.collection("groups").document(groupId).collection("items").document(item.id)
+                        val historyRef = db.collection("groups").document(groupId).collection("history").document(item.id)
+
+                        db.runBatch { batch ->
+                            // 1. Simpan ke history
+                            batch.set(historyRef, item)
+                            // 2. Hapus dari list aktif
+                            batch.delete(itemRef)
+                        }.addOnFailureListener { e ->
+                            android.util.Log.e("Firestore", "Gagal memindahkan ke history", e)
+                        }
                     }
                 )
             }
         }
     }
+}
+
+// Komponen baru untuk menampilkan Dialog History
+@Composable
+fun HistoryDialog(
+    groupId: String,
+    db: FirebaseFirestore,
+    onDismiss: () -> Unit
+) {
+    val historyItems = remember { mutableStateListOf<ShoppingItem>() }
+
+    // Ambil data dari sub-collection "history"
+    LaunchedEffect(groupId) {
+        db.collection("groups")
+            .document(groupId)
+            .collection("history")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                historyItems.clear()
+                for (document in snapshot.documents) {
+                    val item = document.toObject(ShoppingItem::class.java)?.copy(id = document.id)
+                    if (item != null) {
+                        historyItems.add(item)
+                    }
+                }
+            }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Riwayat Dihapus") },
+        text = {
+            if (historyItems.isEmpty()) {
+                Text("Belum ada barang yang dihapus.", color = Color.Gray)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(historyItems) { item ->
+                        Text(
+                            text = "• ${item.name}", // Pastikan atribut "name" sesuai dengan properti di data class ShoppingItem kamu
+                            fontSize = 16.sp,
+                            color = Color.DarkGray
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Tutup")
+            }
+        }
+    )
 }
