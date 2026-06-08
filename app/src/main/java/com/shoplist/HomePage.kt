@@ -42,7 +42,7 @@ enum class GroupDialogState {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(onGroupClick: (String, String, String) -> Unit = { _, _, _ -> }) {
+fun HomePage(onGroupClick: (String, String, String) -> Unit) {
     val context = LocalContext.current
     val groupList = remember { mutableStateListOf<ShoppingGroup>() }
 
