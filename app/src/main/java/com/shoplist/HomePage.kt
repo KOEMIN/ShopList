@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -110,15 +111,9 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
             BottomAppBar(containerColor = Color.White, tonalElevation = 8.dp) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { /* Navigasi ke History */ }) {
-                        Icon(Icons.Default.Refresh, "History", tint = Color(0xFF381E72))
-                    }
-                    IconButton(onClick = { /* Navigasi ke Home */ }) {
-                        Icon(Icons.Default.Home, "Home", tint = Color(0xFF381E72))
-                    }
                     FloatingActionButton(
                         onClick = { dialogState = GroupDialogState.CHOOSE_ACTION }, // Munculkan pilihan
                         containerColor = Color(0xFFD0BCFF),

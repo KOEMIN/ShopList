@@ -18,8 +18,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -142,28 +144,29 @@ fun BelanjaBarengScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Tombol Tambah Barang Polos Bulat
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(primaryPurple)
-                            .clickable {
-                                if (newItemText.isNotBlank()) {
-                                    val itemData = hashMapOf(
-                                        "name" to newItemText.trim(),
-                                        "isChecked" to false
-                                    )
-                                    db.collection("groups")
-                                        .document(groupId)
-                                        .collection("items")
-                                        .add(itemData)
-                                        .addOnSuccessListener {
-                                            newItemText = ""
-                                        }
-                                }
+                    IconButton(
+                        onClick = {
+                            if (newItemText.isNotBlank()) {
+                                val itemData = hashMapOf(
+                                    "name" to newItemText.trim(),
+                                    "isChecked" to false
+                                )
+                                db.collection("groups")
+                                    .document(groupId)
+                                    .collection("items")
+                                    .add(itemData)
+                                    .addOnSuccessListener {
+                                        newItemText = ""
+                                    }
                             }
-                    )
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Kirim",
+                            tint = primaryPurple
+                        )
+                    }
                 }
             }
         }
