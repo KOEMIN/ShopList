@@ -332,11 +332,6 @@ fun GroupCardItem(group: ShoppingGroup, onClick: () -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (group.pendingItemsCount > 0) "${group.pendingItemsCount} barang belum dibeli" else "Semua belanjaan beres!",
-                fontSize = 14.sp,
-                color = if (group.pendingItemsCount > 0) Color(0xFF49454F) else Color(0xFF008069)
-            )
         }
     }
 }
