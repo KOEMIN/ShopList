@@ -149,9 +149,7 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
             }
         }
 
-        // ==========================================
         // KUMPULAN DIALOG (CHOOSE, CREATE, JOIN)
-        // ==========================================
         when (dialogState) {
             GroupDialogState.NONE -> {} // Tidak menampilkan apa-apa
 
