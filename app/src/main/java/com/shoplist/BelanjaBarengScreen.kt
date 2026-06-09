@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -34,7 +36,12 @@ fun BelanjaBarengScreen(
     onChatClick: (String, String, String) -> Unit
 ) {
     val db = FirebaseFirestore.getInstance()
-    val shoppingList = remember { mutableStateListOf<ShoppingItem>() }
+    val context = LocalContext.current
+    val database = remember { AppDatabase.getDatabase(context) }
+    val dao = remember { database.shoppingItemDao() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val shoppingList by dao.getItemsByGroup(groupId).collectAsState(initial = emptyList())
     var newItemText by remember { mutableStateOf("") }
     var showHistoryDialog by remember { mutableStateOf(false) }
     val lavenderBg = Color(0xFFF3EDF7)
@@ -62,17 +69,21 @@ fun BelanjaBarengScreen(
                 }
 
                 if (snapshot != null) {
-                    // Bersihkan daftar barang lama di memori HP agar tidak duplikat
-                    shoppingList.clear()
-                    
-                    // Iterasi setiap baris data dari database
-                    for (document in snapshot.documents) {
-                        // Konversi dokumen Firestore menjadi model data ShoppingItem, lalu sisipkan ID dokumennya
-                        // (mengubah data JSON dari Firebase menjadi objek Kotlin ShoppingItem, menyalin ID dokumen ke properti id).
-                        val item = document.toObject(ShoppingItem::class.java)?.copy(id = document.id)
-                        if (item != null) {
-                            shoppingList.add(item) // Tambahkan ke daftar state Compose (UI otomatis digambar ulang)
+                    coroutineScope.launch {
+                        val localItems = snapshot.documents.mapNotNull { document ->
+                            val item = document.toObject(ShoppingItem::class.java)
+                            item?.let {
+                                LocalShoppingItem(
+                                    id = document.id,
+                                    name = it.name,
+                                    isChecked = it.isChecked,
+                                    groupId = groupId
+                                )
+                            }
                         }
+                        // Bersihkan data lama untuk grup ini dan masukkan data terupdate ke Room
+                        dao.deleteAllItemsByGroup(groupId)
+                        dao.insertItems(localItems)
                     }
                 }
             }
@@ -200,10 +211,16 @@ fun BelanjaBarengScreen(
         ) {
             // PERBAIKAN: Menggunakan objek data list yang benar (shoppingList)
             items(items = shoppingList, key = { it.id }) { item ->
+                val uiItem = remember(item) {
+                    ShoppingItem(
+                        id = item.id,
+                        name = item.name,
+                        isChecked = item.isChecked
+                    )
+                }
                 ShoppingItemRow(
-                    item = item,
+                    item = uiItem,
                     primaryColor = primaryPurple,
-                    //Perintah .update("isChecked", isChecked) akan mengubah status centang barang tersebut di database.
                     onCheckedChange = { isChecked ->
                         // UPDATE SATU FIELD: Ketika kotak centang diklik, update status 'isChecked' saja di Firestore
                         db.collection("groups")
@@ -214,18 +231,16 @@ fun BelanjaBarengScreen(
                     },
                     onDeleteClick = {
                         // LOGIKA HAPUS DENGAN RIWAYAT (WRITE BATCH):
-                        // Kita ingin memindahkan barang yang dihapus ke sub-koleksi 'history' sekaligus menghapusnya dari list aktif.
                         val itemRef = db.collection("groups").document(groupId).collection("items").document(item.id)
                         val historyRef = db.collection("groups").document(groupId).collection("history").document(item.id)
 
-                        // Menggunakan Batch agar kedua proses (copy ke history & delete dari items aktif) 
-                        // sukses secara bersamaan (atomik). Jika salah satu gagal, semua dibatalkan.
+                        // Menggunakan Batch agar kedua proses (copy ke history & delete dari items aktif)
+                        // sukses secara bersamaan (atomik).
                         db.runBatch { batch ->
                             // 1. Salin data barang ke sub-koleksi 'history'
-                            batch.set(historyRef, item)
+                            batch.set(historyRef, uiItem)
                             // 2. Hapus dokumen barang dari daftar aktif 'items'
                             batch.delete(itemRef)
-                            //Jika seluruh proses batch gagal (misal tidak ada internet), akan error
                         }.addOnFailureListener { e ->
                             android.util.Log.e("Firestore", "Gagal memindahkan ke history", e)
                         }
