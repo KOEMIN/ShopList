@@ -40,8 +40,10 @@ fun BelanjaBarengScreen(
     val lavenderBg = Color(0xFFF3EDF7)
     val primaryPurple = Color(0xFF6750A4)
 
-    // Sinkronisasi data real-time dengan sub-collection Firestore
+    // SINKRONISASI DATA REAL-TIME (BARANG BELANJAAN)
+    // DisposableEffect dipakai agar listener otomatis mati saat user keluar dari halaman ini
     DisposableEffect(groupId) {
+        // Berlangganan perubahan ke sub-koleksi 'items' milik grup terpilih
         val listenerRegistration = db.collection("groups")
             .document(groupId)
             .collection("items")
@@ -52,17 +54,22 @@ fun BelanjaBarengScreen(
                 }
 
                 if (snapshot != null) {
+                    // Bersihkan daftar barang lama di memori HP agar tidak duplikat
                     shoppingList.clear()
+                    
+                    // Iterasi setiap baris data dari database
                     for (document in snapshot.documents) {
+                        // Konversi dokumen Firestore menjadi model data ShoppingItem, lalu sisipkan ID dokumennya
                         val item = document.toObject(ShoppingItem::class.java)?.copy(id = document.id)
                         if (item != null) {
-                            shoppingList.add(item)
+                            shoppingList.add(item) // Tambahkan ke daftar state Compose (UI otomatis digambar ulang)
                         }
                     }
                 }
             }
 
         onDispose {
+            // BERSIH-BERSIH: Putuskan pipa langganan ke server agar tidak memakan RAM dan kuota internet di latar belakang
             listenerRegistration.remove()
         }
     }
@@ -147,15 +154,18 @@ fun BelanjaBarengScreen(
                     IconButton(
                         onClick = {
                             if (newItemText.isNotBlank()) {
+                                // 1. Bikin objek Map berisi nama barang dan status awal (belum dibeli)
                                 val itemData = hashMapOf(
                                     "name" to newItemText.trim(),
                                     "isChecked" to false
                                 )
+                                // 2. Simpan barang baru ke sub-koleksi 'items' di bawah grup ini di Firestore
                                 db.collection("groups")
                                     .document(groupId)
                                     .collection("items")
                                     .add(itemData)
                                     .addOnSuccessListener {
+                                        // 3. Jika berhasil tersimpan, kosongkan kolom input teks
                                         newItemText = ""
                                     }
                             }
@@ -185,6 +195,7 @@ fun BelanjaBarengScreen(
                     item = item,
                     primaryColor = primaryPurple,
                     onCheckedChange = { isChecked ->
+                        // UPDATE SATU FIELD: Ketika kotak centang diklik, update status 'isChecked' saja di Firestore
                         db.collection("groups")
                             .document(groupId)
                             .collection("items")
@@ -192,14 +203,17 @@ fun BelanjaBarengScreen(
                             .update("isChecked", isChecked)
                     },
                     onDeleteClick = {
-                        // PERBAIKAN: Gunakan Batch untuk memindahkan item ke history, lalu hapus dari daftar utama
+                        // LOGIKA HAPUS DENGAN RIWAYAT (WRITE BATCH):
+                        // Kita ingin memindahkan barang yang dihapus ke sub-koleksi 'history' sekaligus menghapusnya dari list aktif.
                         val itemRef = db.collection("groups").document(groupId).collection("items").document(item.id)
                         val historyRef = db.collection("groups").document(groupId).collection("history").document(item.id)
 
+                        // Menggunakan Batch agar kedua proses (copy ke history & delete dari items aktif) 
+                        // sukses secara bersamaan (atomik). Jika salah satu gagal, semua dibatalkan.
                         db.runBatch { batch ->
-                            // 1. Simpan ke history
+                            // 1. Salin data barang ke sub-koleksi 'history'
                             batch.set(historyRef, item)
-                            // 2. Hapus dari list aktif
+                            // 2. Hapus dokumen barang dari daftar aktif 'items'
                             batch.delete(itemRef)
                         }.addOnFailureListener { e ->
                             android.util.Log.e("Firestore", "Gagal memindahkan ke history", e)

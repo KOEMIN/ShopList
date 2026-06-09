@@ -102,59 +102,58 @@ fun RegisterPage(navController: NavHostController) {
 
             Button(
                 onClick = {
-
+                    // LOGIKA UTAMA REGISTRASI: Daftarkan email dan password ke Firebase Authentication
                     auth.createUserWithEmailAndPassword(
                         email,
                         password
                     ).addOnCompleteListener { task ->
 
                         if (task.isSuccessful) {
-
+                            // Ambil UID unik yang baru saja diciptakan untuk user ini
                             val uid = auth.currentUser?.uid ?: ""
 
+                            // Bikin request untuk menambahkan nama lengkap ke profil Firebase Auth
                             val profileUpdates = userProfileChangeRequest {
                                 displayName = name
                             }
 
+                            // Update nama lengkap di Auth Firebase agar bisa diakses nanti (misal saat Chat)
                             auth.currentUser?.updateProfile(profileUpdates)
                                 ?.addOnSuccessListener {
 
+                                    // Siapkan data profil untuk disimpan di Firestore
                                     val userData = hashMapOf(
                                         "name" to name,
                                         "email" to email,
-                                        "createdAt" to FieldValue.serverTimestamp()
+                                        "createdAt" to FieldValue.serverTimestamp() // Jam server Firebase
                                     )
 
+                                    // Simpan dokumen profil di koleksi 'users' dengan ID dokumen = UID user
                                     db.collection("users")
                                         .document(uid)
                                         .set(userData)
                                         .addOnSuccessListener {
-
+                                            // Setelah registrasi beres, sign out dulu demi keamanan
                                             FirebaseAuth.getInstance().signOut()
 
+                                            // Arahkan ke halaman login dan hapus riwayat register dari stack navigasi
                                             navController.navigate("login") {
                                                 popUpTo("register") {
                                                     inclusive = true
                                                 }
                                             }
-
                                         }
                                         .addOnFailureListener {
                                             errorMessage =
                                                 it.message ?: "Firestore gagal"
                                         }
-
                                 }
-
                         } else {
-
                             errorMessage =
                                 task.exception?.message
                                     ?: "Register gagal"
-
                         }
                     }
-
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

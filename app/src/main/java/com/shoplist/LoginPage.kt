@@ -87,26 +87,21 @@ fun LoginPage(navController: NavHostController) {
 
             Button(
                 onClick = {
-
+                    // LOGIKA UTAMA LOGIN: Mengirimkan email dan password ke Firebase Authentication
                     auth.signInWithEmailAndPassword(email, password)
                         .addOnCompleteListener { task ->
-
                             if (task.isSuccessful) {
-
+                                // 1. JIKA SUKSES: Sesi login otomatis disimpan oleh SDK Firebase di HP.
+                                // 2. PINDAH LAYAR: Arahkan user langsung ke halaman utama ("home").
                                 navController.navigate("home")
-
                             } else {
-
+                                // JIKA GAGAL: Ambil pesan error dari Firebase (misal: password salah atau email tidak terdaftar)
                                 errorMessage =
                                     task.exception?.message
                                         ?: "Login gagal"
-
                             }
-
                         }
-
                 },
-
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Login")

@@ -55,8 +55,11 @@ fun ChatScreen(
     val lavenderBg = Color(0xFFF3EDF7)
     val primaryPurple = Color(0xFF6750A4)
 
+    // SINKRONISASI PESAN CHAT REAL-TIME
+    // Menggunakan DisposableEffect agar listener otomatis berhenti ketika user keluar dari ruang chat
     DisposableEffect(groupId) {
-
+        // Mengakses sub-koleksi 'messages' di bawah dokumen grup, 
+        // lalu diurutkan berdasarkan 'timestamp' kirim agar obrolan runtut.
         val listener = db.collection("groups")
             .document(groupId)
             .collection("messages")
@@ -64,21 +67,18 @@ fun ChatScreen(
             .addSnapshotListener { snapshot, error ->
 
                 if (error != null) {
-                    android.util.Log.e(
-                        "Firestore",
-                        "Gagal mengambil pesan",
-                        error
-                    )
+                    android.util.Log.e("Firestore", "Gagal mengambil pesan", error)
                     return@addSnapshotListener
                 }
 
+                // Kosongkan list pesan lama di memory HP agar bisa direfresh dengan daftar utuh terbaru
                 messages.clear()
 
                 snapshot?.documents?.forEach { document ->
-
+                    // Konversi dokumen dari Firestore menjadi model data ChatMessage Kotlin
                     val msg = document.toObject(ChatMessage::class.java)
-
                     if (msg != null) {
+                        // Tambahkan pesan ke list state Compose (UI akan langsung merender bubble baru)
                         messages.add(
                             msg.copy(id = document.id)
                         )
@@ -87,6 +87,7 @@ fun ChatScreen(
             }
 
         onDispose {
+            // BERSIH-BERSIH: Putuskan pipa langganan chat ke server agar menghemat daya baterai & internet
             listener.remove()
         }
     }
@@ -141,26 +142,29 @@ fun ChatScreen(
 
                     IconButton(
                         onClick = {
-
+                            // Validasi: Cegah pengiriman jika kolom teks kosong atau hanya berisi spasi
                             if (messageText.isBlank()) {
                                 return@IconButton
                             }
 
+                            // 1. Menyiapkan data pesan obrolan dalam bentuk Map
                             val data = hashMapOf(
-                                "senderId" to currentUid,
+                                "senderId" to currentUid, // ID Pengirim (untuk menentukan letak bubble kiri/kanan)
                                 "senderName" to (
                                         auth.currentUser?.displayName
-                                            ?: "User"
+                                            ?: "User" // Nama Pengirim
                                         ),
-                                "message" to messageText.trim(),
-                                "timestamp" to FieldValue.serverTimestamp()
+                                "message" to messageText.trim(), // Isi Pesan
+                                "timestamp" to FieldValue.serverTimestamp() // Waktu kirim sinkron dari server Firebase
                             )
 
+                            // 2. Simpan pesan baru ke sub-koleksi 'messages' di bawah grup chat terpilih
                             db.collection("groups")
                                 .document(groupId)
                                 .collection("messages")
                                 .add(data)
                                 .addOnSuccessListener {
+                                    // 3. Jika sukses terkirim, kosongkan kolom ketik pesan
                                     messageText = ""
                                 }
                         }

@@ -52,16 +52,19 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
     var groupNameInput by remember { mutableStateOf("") }
     var joinCodeInput by remember { mutableStateOf("") }
 
-    // Membaca data dari Firestore secara Real-Time (Difilter berdasarkan members)
+    // PROSES MENGAMBIL DATA GRUP SECARA REAL-TIME DARI FIRESTORE
+    // LaunchedEffect(Unit) berjalan sekali saat halaman Home pertama kali dibuka
     LaunchedEffect(Unit) {
         val db = FirebaseFirestore.getInstance()
         val auth = FirebaseAuth.getInstance()
         val currentUserId = auth.currentUser?.uid
 
         if (currentUserId != null) {
-            // HANYA ambil grup di mana user ini menjadi anggotanya
+            // FILTER PRIVASI: Hanya ambil dokumen dari koleksi 'groups' 
+            // yang mana field 'members' (array UID) mengandung UID saya yang sedang login
             db.collection("groups")
                 .whereArrayContains("members", currentUserId)
+                // REAL-TIME LISTENER: Berlangganan perubahan data langsung ke server
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         android.util.Log.e("Firestore", "Gagal mengambil data", error)
@@ -69,12 +72,16 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
                     }
 
                     if (snapshot != null) {
+                        // Bersihkan daftar grup lama di memori HP agar terhindar dari duplikasi
                         groupList.clear()
+                        
+                        // Iterasi setiap dokumen grup dari server
                         for (document in snapshot.documents) {
                             val name = document.getString("name") ?: ""
                             val code = document.getString("joinCode") ?: "-"
                             val pendingCount = 0
 
+                            // Konversi dokumen ke model ShoppingGroup, lalu tambahkan ke State List
                             groupList.add(
                                 ShoppingGroup(
                                     id = document.id,
@@ -193,19 +200,22 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
                                     val auth = FirebaseAuth.getInstance()
                                     val currentUserId = auth.currentUser?.uid ?: return@Button
 
-                                    // Generate 6 karakter kode acak
+                                    // 1. GENERATE KODE UNIK: Potong UUID jadi 6 karakter huruf kapital untuk kode gabung grup
                                     val generatedCode = UUID.randomUUID().toString().substring(0, 6).uppercase()
 
+                                    // 2. STRUKTUR DATA GRUP: Siapkan map data untuk disimpan di Firestore
                                     val groupData = hashMapOf(
-                                        "name" to groupNameInput.trim(),
-                                        "createdBy" to currentUserId,
-                                        "createdAt" to FieldValue.serverTimestamp(),
-                                        "joinCode" to generatedCode,
-                                        "members" to listOf(currentUserId) // Array anggota
+                                        "name" to groupNameInput.trim(), // Nama grup belanja
+                                        "createdBy" to currentUserId, // UID pembuat grup
+                                        "createdAt" to FieldValue.serverTimestamp(), // Waktu pembuatan dari server
+                                        "joinCode" to generatedCode, // Kode undangan 6 digit
+                                        "members" to listOf(currentUserId) // Anggota pertama (pembuat grup)
                                     )
 
+                                    // 3. SIMPAN GRUP KE FIRESTORE: Masukkan data ke koleksi 'groups'
                                     db.collection("groups").add(groupData)
                                         .addOnSuccessListener {
+                                            // 4. Tutup dialog dan kosongkan form input
                                             dialogState = GroupDialogState.NONE
                                             groupNameInput = ""
                                             Toast.makeText(context, "Grup berhasil dibuat!", Toast.LENGTH_SHORT).show()
@@ -252,25 +262,27 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
                                     val auth = FirebaseAuth.getInstance()
                                     val currentUserId = auth.currentUser?.uid ?: return@Button
 
-                                    // Cari grup berdasarkan kode yang diinput
+                                    // 1. CARI GRUP BERDASARKAN KODE: Lakukan query ke Firestore untuk mencari grup dengan joinCode yang cocok
                                     db.collection("groups")
                                         .whereEqualTo("joinCode", joinCodeInput.trim())
                                         .get()
                                         .addOnSuccessListener { querySnapshot ->
                                             if (!querySnapshot.isEmpty) {
-                                                // Jika kode ditemukan, ambil ID dokumennya
+                                                // Jika ketemu, ambil ID dokumen grup tersebut
                                                 val docId = querySnapshot.documents[0].id
 
-                                                // Tambahkan UID user ke dalam array 'members'
+                                                // 2. GABUNG GRUP (UPDATE): Masukkan UID saya ke dalam array 'members'
+                                                // Menggunakan arrayUnion agar UID hanya masuk sekali (mencegah duplikat jika klik berkali-kali)
                                                 db.collection("groups").document(docId)
                                                     .update("members", FieldValue.arrayUnion(currentUserId))
                                                     .addOnSuccessListener {
+                                                        // 3. Tutup dialog dan bersihkan input
                                                         dialogState = GroupDialogState.NONE
                                                         joinCodeInput = ""
                                                         Toast.makeText(context, "Berhasil gabung ke grup!", Toast.LENGTH_SHORT).show()
                                                     }
                                             } else {
-                                                // Jika kode tidak ada di database
+                                                // Jika tidak ada grup yang menggunakan kode tersebut
                                                 Toast.makeText(context, "Kode grup tidak ditemukan!", Toast.LENGTH_SHORT).show()
                                             }
                                         }
