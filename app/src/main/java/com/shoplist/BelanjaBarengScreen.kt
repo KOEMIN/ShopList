@@ -67,10 +67,14 @@ fun BelanjaBarengScreen(
                     android.util.Log.e("Firestore", "Gagal mengambil data barang", error)
                     return@addSnapshotListener
                 }
-
+                //Memastikan bahwa data dari Firebase (snapshot) benar-benar ada isinya sebelum diproses.
                 if (snapshot != null) {
                     coroutineScope.launch {
+                        //snapshot.documents berisi daftar mentah dokumen dari Firebase.
+                        //mapNotNull untuk mengubah setiap dokumen tersebut menjadi objek ShoppingItem.
                         val localItems = snapshot.documents.mapNotNull { document ->
+                            // Mengambil data mentah (yang formatnya seperti JSON dari Firebase)
+                            // dan diubah menjadi objek Kotlin bernama ShoppingItem.
                             val item = document.toObject(ShoppingItem::class.java)
                             item?.let {
                                 LocalShoppingItem(
@@ -93,11 +97,15 @@ fun BelanjaBarengScreen(
             listenerRegistration.remove()
         }
     }
-
+// untuk mrngecek variabel showHistoryDialog.
+// Jika bernilai true, maka baris kode di dalamnya dijalankan.
     if (showHistoryDialog) {
         HistoryDialog(
             groupId = groupId,
             db = db,
+            //onDismiss = { showHistoryDialog = false }: Ini adalah aksi jika user menekan tombol "Tutup"
+            // atau mengeklik area di luar pop-up. Variabel dikembalikan menjadi false,
+            // sehingga pop-up otomatis menghilang dari layar.
             onDismiss = { showHistoryDialog = false }
         )
     }
@@ -201,15 +209,19 @@ fun BelanjaBarengScreen(
             }
         }
     ) { paddingValues ->
+        // komponen Jetpack Compose untuk membuat daftar yang bisa digulir (scrollable list)
+        //untuk menghemat ram
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color.White)
+            modifier = Modifier //mengatur tata letak
+                .fillMaxSize() //mengatur ukuran agar memenuhi layar penuh yang tersedia.
+                .padding(paddingValues)//mengatur jarak antar item
+                .background(Color.White)//mengatur warna latar belakang
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)//mengatur jarak antar item
         ) {
             // PERBAIKAN: Menggunakan objek data list yang benar (shoppingList)
+            //Memerintahkan LazyColumn untuk mengulang (melakukan loop) sebanyak jumlah
+            // barang yang ada di dalam variabel shoppingList
             items(items = shoppingList, key = { it.id }) { item ->
                 val uiItem = remember(item) {
                     ShoppingItem(
@@ -218,6 +230,7 @@ fun BelanjaBarengScreen(
                         isChecked = item.isChecked
                     )
                 }
+                //kode ini untuk memanggil komponen khusus bernama ShoppingItemRow
                 ShoppingItemRow(
                     item = uiItem,
                     primaryColor = primaryPurple,
@@ -231,6 +244,8 @@ fun BelanjaBarengScreen(
                     },
                     onDeleteClick = {
                         // LOGIKA HAPUS DENGAN RIWAYAT (WRITE BATCH):
+                        //dua alamat surat (referensi). itemRef adalah alamat barang tersebut di daftar aktif.
+                        // historyRef adalah alamat baru untuk barang tersebut di dalam "tong sampah" atau riwayat (history).
                         val itemRef = db.collection("groups").document(groupId).collection("items").document(item.id)
                         val historyRef = db.collection("groups").document(groupId).collection("history").document(item.id)
 
@@ -241,6 +256,7 @@ fun BelanjaBarengScreen(
                             batch.set(historyRef, uiItem)
                             // 2. Hapus dokumen barang dari daftar aktif 'items'
                             batch.delete(itemRef)
+                        // jika proses batch gagal dapat ditangani agar dapat terlacak kegagalannya
                         }.addOnFailureListener { e ->
                             android.util.Log.e("Firestore", "Gagal memindahkan ke history", e)
                         }
@@ -267,13 +283,13 @@ fun HistoryDialog(
         db.collection("groups")
             .document(groupId)
             .collection("history")
-            .get()
+            .get() // "menarik" data saat itu juga sekali saja.
             .addOnSuccessListener { snapshot ->
-                historyItems.clear()
+                historyItems.clear()// mengosongkan data di memori hp agar tidak menumpuk
                 for (document in snapshot.documents) {
                     val item = document.toObject(ShoppingItem::class.java)?.copy(id = document.id)
                     if (item != null) {
-                        historyItems.add(item)
+                        historyItems.add(item) //Memasukkan barang tersebut ke dalam memori historyItems,
                     }
                 }
             }
@@ -286,8 +302,9 @@ fun HistoryDialog(
             if (historyItems.isEmpty()) {
                 Text("Belum ada barang yang dihapus.", color = Color.Gray)
             } else {
+                //Membuat daftar yang bisa di-scroll ke atas/bawah jika riwayatnya sangat panjang.
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(historyItems) { item ->
+                    items(historyItems) { item ->//Mengulang setiap barang di riwayat untuk dicetak ke layar.
                         Text(
                             text = "• ${item.name}",
                             fontSize = 16.sp,
