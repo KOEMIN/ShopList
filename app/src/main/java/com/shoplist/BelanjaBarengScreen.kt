@@ -41,13 +41,21 @@ fun BelanjaBarengScreen(
     val primaryPurple = Color(0xFF6750A4)
 
     // SINKRONISASI DATA REAL-TIME (BARANG BELANJAAN)
-    // DisposableEffect dipakai agar listener otomatis mati saat user keluar dari halaman ini
+    // DisposableEffect dipakai agar listener otomatis mati saat user keluar dari halaman ini.
+    // Fungsi di dalam blok ini akan dieksekusi saat halaman pertama kali dibuka, atau jika nilai
+    // groupId berubah (misalnya pengguna berpindah ke grup belanja lain).
     DisposableEffect(groupId) {
-        // Berlangganan perubahan ke sub-koleksi 'items' milik grup terpilih
+        // Fungsi ini membuat aplikasi berlangganan aliran data secara real-time.
+        // Setiap kali ada perubahan di server (barang ditambah, dihapus, atau dicentang oleh orang lain),
+        // Firebase akan langsung mengirimkan data terbaru (snapshot) ke aplikasi secara otomatis.
         val listenerRegistration = db.collection("groups")
             .document(groupId)
             .collection("items")
             .addSnapshotListener { snapshot, error ->
+                //Jika terjadi masalah saat mengambil data (misalnya koneksi internet terputus atau izin baca ditolak oleh aturan keamanan Firebase),
+                // sistem akan mengirimkan error.
+                //Log.e bertugas mencetak pesan error tersebut secara tersembunyi di konsol
+                //return@addSnapshotListener digunakan untuk langsung menghentikan proses pembaruan data tersebut karena datanya memang gagal diambil.
                 if (error != null) {
                     android.util.Log.e("Firestore", "Gagal mengambil data barang", error)
                     return@addSnapshotListener
@@ -60,6 +68,7 @@ fun BelanjaBarengScreen(
                     // Iterasi setiap baris data dari database
                     for (document in snapshot.documents) {
                         // Konversi dokumen Firestore menjadi model data ShoppingItem, lalu sisipkan ID dokumennya
+                        // (mengubah data JSON dari Firebase menjadi objek Kotlin ShoppingItem, menyalin ID dokumen ke properti id).
                         val item = document.toObject(ShoppingItem::class.java)?.copy(id = document.id)
                         if (item != null) {
                             shoppingList.add(item) // Tambahkan ke daftar state Compose (UI otomatis digambar ulang)
@@ -67,7 +76,7 @@ fun BelanjaBarengScreen(
                     }
                 }
             }
-
+        //onDispose hanya akan dieksekusi ketika pengguna keluar dari halaman (layar dihancurkan) atau ketika groupId berganti.
         onDispose {
             // BERSIH-BERSIH: Putuskan pipa langganan ke server agar tidak memakan RAM dan kuota internet di latar belakang
             listenerRegistration.remove()
@@ -194,6 +203,7 @@ fun BelanjaBarengScreen(
                 ShoppingItemRow(
                     item = item,
                     primaryColor = primaryPurple,
+                    //Perintah .update("isChecked", isChecked) akan mengubah status centang barang tersebut di database.
                     onCheckedChange = { isChecked ->
                         // UPDATE SATU FIELD: Ketika kotak centang diklik, update status 'isChecked' saja di Firestore
                         db.collection("groups")
@@ -215,6 +225,7 @@ fun BelanjaBarengScreen(
                             batch.set(historyRef, item)
                             // 2. Hapus dokumen barang dari daftar aktif 'items'
                             batch.delete(itemRef)
+                            //Jika seluruh proses batch gagal (misal tidak ada internet), akan error
                         }.addOnFailureListener { e ->
                             android.util.Log.e("Firestore", "Gagal memindahkan ke history", e)
                         }
@@ -232,9 +243,11 @@ fun HistoryDialog(
     db: FirebaseFirestore,
     onDismiss: () -> Unit
 ) {
+    //kode ini membuat sebuah state berupa daftar kosong untuk menampung barang-barang yang ada di riwayat.
     val historyItems = remember { mutableStateListOf<ShoppingItem>() }
 
     // Ambil data dari sub-collection "history"
+    // Fungsi Compose yang digunakan untuk menjalankan suatu proses (seperti mengambil data)
     LaunchedEffect(groupId) {
         db.collection("groups")
             .document(groupId)
@@ -261,7 +274,7 @@ fun HistoryDialog(
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(historyItems) { item ->
                         Text(
-                            text = "• ${item.name}", // Pastikan atribut "name" sesuai dengan properti di data class ShoppingItem kamu
+                            text = "• ${item.name}",
                             fontSize = 16.sp,
                             color = Color.DarkGray
                         )
