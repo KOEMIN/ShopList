@@ -28,6 +28,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+//deklarasi fungsi dan parameter
 fun BelanjaBarengScreen(
     groupId: String,
     groupName: String,

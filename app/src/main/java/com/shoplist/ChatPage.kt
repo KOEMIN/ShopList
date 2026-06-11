@@ -39,18 +39,19 @@ fun ChatScreen(
     groupCode: String,
     onBackClick: () -> Unit
 ) {
+    //Memanggil dan menyimpan mesin database Firebase Firestore ke dalam variabel db.
     val db = FirebaseFirestore.getInstance()
-    val auth = FirebaseAuth.getInstance()
+    val auth = FirebaseAuth.getInstance() // untuk mengenali pengguna yang sedang login
 
     val messages = remember {
-        mutableStateListOf<ChatMessage>()
+        mutableStateListOf<ChatMessage>() // untuk mebuat daftae list khusus untuk chat
     }
 
     var messageText by remember {
-        mutableStateOf("")
+        mutableStateOf("") // saat mengetik layar hp akan berubah secara otomatis
     }
 
-    val currentUid = auth.currentUser?.uid ?: ""
+    val currentUid = auth.currentUser?.uid ?: "" //mengambil id pengguna yang sedang login
 
     val lavenderBg = Color(0xFFF3EDF7)
     val primaryPurple = Color(0xFF6750A4)
@@ -86,12 +87,14 @@ fun ChatScreen(
                 }
             }
 
+        //onDispose akan dieksekusi ketika pengguna keluar dari halaman atau ketika groupId berganti.
         onDispose {
             // BERSIH-BERSIH: Putuskan pipa langganan chat ke server agar menghemat daya baterai & internet
             listener.remove()
         }
     }
 
+    //Scaffold adalah komponen dasar dari Material Design di Compose
     Scaffold(
         topBar = {
             TopAppBar(
@@ -135,7 +138,7 @@ fun ChatScreen(
                             unfocusedIndicatorColor = Color.Transparent
                         ),
                     )
-
+                    //Spacer memberikan jarak kosong secara horizontal
                     Spacer(
                         modifier = Modifier.width(8.dp)
                     )
@@ -152,17 +155,18 @@ fun ChatScreen(
                                 "senderId" to currentUid, // ID Pengirim (untuk menentukan letak bubble kiri/kanan)
                                 "senderName" to (
                                         auth.currentUser?.displayName
-                                            ?: "User" // Nama Pengirim
+                                            ?: "User" // Mengambil Nama pengguna dari Firebase Auth, jika tidak ada akan menggunakan "User"
                                         ),
                                 "message" to messageText.trim(), // Isi Pesan
                                 "timestamp" to FieldValue.serverTimestamp() // Waktu kirim sinkron dari server Firebase
                             )
 
                             // 2. Simpan pesan baru ke sub-koleksi 'messages' di bawah grup chat terpilih
+                            //proses pengiriman ke Firebase Firestore.
                             db.collection("groups")
                                 .document(groupId)
                                 .collection("messages")
-                                .add(data)
+                                .add(data) //Menambahkan dokumen data pesan baru.
                                 .addOnSuccessListener {
                                     // 3. Jika sukses terkirim, kosongkan kolom ketik pesan
                                     messageText = ""
@@ -179,7 +183,7 @@ fun ChatScreen(
             }
         }
     ) { paddingValues ->
-
+    // agar dapa menscroll, menggunakan lazycolumn agar hemat memori
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -189,9 +193,10 @@ fun ChatScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
 
-            items(
-                items = messages,
-                key = { it.id }
+            items( //fungsi khusus di dalam LazyColumn untuk mengulang (looping) sebuah daftar data (list).
+                items = messages,// untuk menerima variable massages
+                key = { it.id } //untukagar saat ada pesan baru masuk atau pesan dihapus,
+            // Compose tidak perlu menggambar ulang seluruh daftar chat memberikan identitas unik (ID) untuk setiap baris chat
             ) { message ->
 
                 ChatBubble(
@@ -203,11 +208,11 @@ fun ChatScreen(
         }
     }
 }
-
+// untuk tampilan chat buble
 @Composable
 fun ChatBubble(
-    message: ChatMessage,
-    isMine: Boolean,
+    message: ChatMessage,// untuk mengambil data user
+    isMine: Boolean, // untuk mengecek apakah pesan dari user atau orang lain
     primaryColor: Color
 ) {
 
@@ -215,13 +220,13 @@ fun ChatBubble(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment =
             if (isMine)
-                Alignment.End
+                Alignment.End // jika pesan dari user maka posisi buble chat di kanan
             else
-                Alignment.Start
+                Alignment.Start // jika pesan dari orang lain maka posisi buble chat di kiri
     ) {
 
         Text(
-            text = message.senderName,
+            text = message.senderName, //Mengambil data nama pengirim dari variabel message
             fontSize = 12.sp,
             color = Color.Gray,
             modifier = Modifier.padding(horizontal = 8.dp)
