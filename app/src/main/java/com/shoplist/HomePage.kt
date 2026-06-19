@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.UUID
+
 
 // Tambahkan joinCode di Model Data agar bisa ditampilkan di UI
 data class ShoppingGroup(
@@ -43,7 +45,10 @@ enum class GroupDialogState {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomePage(onGroupClick: (String, String, String) -> Unit) {
+fun HomePage(
+    onGroupClick: (String, String, String) -> Unit,
+    onLogoutClick: () -> Unit // <-- TAMBAHAN BARU
+) {
     val context = LocalContext.current
     val groupList = remember { mutableStateListOf<ShoppingGroup>() }
 
@@ -105,12 +110,16 @@ fun HomePage(onGroupClick: (String, String, String) -> Unit) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF6750A4)),
                 actions = {
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 16.dp)
-                            .size(32.dp)
-                            .background(color = Color(0xFFD0BCFF), shape = CircleShape)
-                    )
+                    // =======================================================
+                    // PERUBAHAN DI SINI: Mengganti Box dengan IconButton
+                    // =======================================================
+                    IconButton(onClick = { onLogoutClick() }) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = Color.White
+                        )
+                    }
                 }
             )
         },

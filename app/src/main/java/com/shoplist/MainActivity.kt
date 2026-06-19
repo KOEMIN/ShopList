@@ -4,12 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.NavType // <-- IMPORT BARU UNTUK TIPE DATA ARGUMEN
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument // <-- IMPORT BARU UNTUK MENANGKAP ARGUMEN
+import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,9 +25,19 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation() {
     val navController = rememberNavController()
 
+    // =======================================================================
+    // PERUBAHAN BARU: Cek status login user saat aplikasi dibuka
+    // =======================================================================
+    val auth = FirebaseAuth.getInstance()
+    val startingScreen = if (auth.currentUser != null) {
+        "home" // Jika user sudah login, langsung buka Home
+    } else {
+        "login" // Jika belum, buka halaman Login
+    }
+
     NavHost(
         navController = navController,
-        startDestination = "login"
+        startDestination = startingScreen // <-- Gunakan variabel startingScreen di sini
     ) {
 
         composable("login") {
@@ -38,22 +48,28 @@ fun AppNavigation() {
             RegisterPage(navController)
         }
 
-        // =======================================================================
-        // PERUBAHAN 1: Sesuaikan rute "home" agar menerima aksi klik item grup
-        // =======================================================================
         composable("home") {
-            // Asumsi: HomePage Anda memiliki fungsi lambda (callback) saat sebuah grup diklik
             HomePage(
                 onGroupClick = { id, code, name ->
-                    // Berpindah halaman ke shopping_list sambil menyelipkan id dan nama grup
                     navController.navigate("shopping_list/$id/$code/$name")
+                },
+                // ==========================================================
+                // TAMBAHAN BARU: Fungsi untuk menangani klik tombol Logout
+                // ==========================================================
+                onLogoutClick = {
+                    // 1. Hapus sesi di Firebase
+                    FirebaseAuth.getInstance().signOut()
+
+                    // 2. Arahkan kembali ke halaman login, dan hapus SEMUA riwayat halaman
+                    navController.navigate("login") {
+                        popUpTo(navController.graph.id) {
+                            inclusive = true
+                        }
+                    }
                 }
             )
         }
 
-        // =======================================================================
-        // PERUBAHAN 2: Tambahkan rute baru untuk memanggil BelanjaBarengScreen
-        // =======================================================================
         composable(
             route = "shopping_list/{groupId}/{groupCode}/{groupName}",
             arguments = listOf(
@@ -62,18 +78,15 @@ fun AppNavigation() {
                 navArgument("groupName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            // Mengambil ekstensi data argumen string yang dikirim oleh HomePage
             val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
             val groupCode = backStackEntry.arguments?.getString("groupCode") ?: ""
             val groupName = backStackEntry.arguments?.getString("groupName") ?: "Belanja Bareng"
 
-            // Memanggil screen baru yang Anda buat
             BelanjaBarengScreen(
                 groupId = groupId,
                 groupName = groupName,
                 groupCode = groupCode,
                 onBackClick = {
-                    // Logika ketika tombol ArrowBack diklik (kembali ke halaman sebelumnya)
                     navController.popBackStack()
                 },
                 onChatClick = { id, name, code ->
